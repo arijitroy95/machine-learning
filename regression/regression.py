@@ -1,0 +1,160 @@
+from util import DataManipulation, DataOperation
+import numpy as np
+import math
+
+
+class L1Regularization:
+	""" Regularization for Lasso Regression """
+	def __init__(self, alpha):
+		self.alpha = alpha
+	
+	def __call__(self, weights):
+		return self.alpha * np.linalg.norm(weights, ord=1)
+	
+	def grad(self, weights):
+		return self.alpha * np.sign(weights)
+
+
+class L2Regularization:
+	""" Regularization for Ridge Regression """
+	def __init__(self, alpha):
+		self.alpha = alpha
+	
+	def __call__(self, weights):
+		return self.alpha * 0.5 * weights.T.dot(weights)
+	
+	def grad(self, weights):
+		return self.alpha * weights
+
+
+class L1L2Regularization:
+	""" Regularization for Elastic Net """
+	def __init__(self, alpha, l1_ratio=0.5):
+		self.alpha = alpha
+		self.l1_ratio = l1_ratio
+	
+	def __call__(self, weights):
+		l1_contribution = self.l1_ratio * np.linalg.norm(weights, ord=1)
+		l2_contribution = (1 - self.l1_ratio) * 0.5 * weights.T.dot(weights)
+		return self.alpha * (l1_contribution + l2_contribution)
+	
+	def grad(self, weights):
+		l1_contribution = self.l1_ratio * np.sign(weights)
+		l2_contribution = (1 - self.l1_ratio) * weights
+		return self.alpha * (l1_contribution + l2_contribution)
+
+
+class Regression(object):
+	""" Base regression model. Models the relationship between dependent variable y and 
+ 		the independent variable X
+ 	"""
+	def __init__(self, n_iter, lr):
+		self.n_iter = n_iter
+		self.lr = lr
+	
+	def initialize_weights(self, n_features, random=True):
+		""" randomly initialize weigts or to zero"""
+		if random:
+			limit = 1 / math.sqrt(n_features)
+			self.weights = np.random.uniform(-limit, limit, (n_features, ))
+		else:
+			self.weights = np.zeros(n_features)
+	
+	def fit(self, X, y):
+		""" fitting regression model to the data X and y """
+		# TODO insert stack of 1 for bias
+		X = np.insert(X, 0, 1, axis=1)
+		self.errors = []
+		self.initialize_weights(n_features=X.shape[1])
+		
+		# TODO gradient descent for n_iter
+		for _ in range(self.n_iter):
+			y_pred = X.dot(self.weights)
+			# calculate l2 loss
+			mse = np.mean(0.5 * (y - y_pred)**2 + self.regularization(self.weights))
+			self.errors.append(mse)
+			# calucalte gradiant of loss function w.r.t weights
+			grad_weights = -(y - y_pred).dot(X) + self.regularization.grad(self.weights)
+			# weight updation
+			self.weights -= self.lr * grad_weights
+		
+	def predict(self, X):
+		X = np.insert(X, 0, 1, axis=1)
+		return X.dot(self.weights)
+
+
+class LinearRegression(Regression):
+	""" Linear Regression model """
+	def __init__(self, n_iter=100, lr=0.001):
+		self.regularization = lambda x: 0
+		self.regularization.grad = lambda x: 0
+		super(LinearRegression, self).__init__(n_iter=n_iter, lr=lr)
+
+
+class PolynomialRegression(Regression):
+	""" Polynomial Regression model """
+	def __init__(self, degree, n_iter=100, lr=0.001):
+		self.degree = degree
+		self.regularization = lambda x: 0
+		self.regularization.grad = lambda x: 0
+		super(PolynomialRegression, self).__init__(n_iter=n_iter, lr=lr)
+	
+	def fit(self, X, y):
+		X = DataManipulation().polynomial_features(X, degree=self.degree)
+		super(PolynomialRegression, self).fit(X, y)
+	
+	def predict(self, X):
+		X = DataManipulation().polynomial_features(X, degree=self.degree)
+		super(PolynomialRegression, self).predict(X, y)
+
+
+class LassoRegression(Regression):
+	""" Lasso Regression """
+	def __init__(self, reg_factor, degree, n_iter=100, lr=0.001):
+		self.regularization = L1Regularization(alpha=reg_factor)
+		self.degree = degree
+		super(LassoRegression, self).__init__(n_iter=n_iter, lr=lr)
+	
+	def fit(self, X, y):
+		X = DataManipulation().polynomial_features(X, degree=self.degree)
+		X = DataManipulation().normalize(X)
+		super(LassoRegression, self).fit(X, y)
+	
+	def predict(self, X):
+		X = DataManipulation().polynomial_features(X, degree=self.degree)
+		X = DataManipulation().normalize(X)
+		super(LassoRegression, self).predict(X)
+	
+
+class RidgeRigression(Regression):
+	""" Ridge Rigression """
+	def __init__(self, reg_factor, n_iter=100, lr=0.001):
+		self.regularization = L2Regularization(alpha=reg_factor)
+		super(RidgeRigression, self).__init__(n_iter=n_iter, lr=lr)
+	
+	def fit(self, X, y):
+		X = DataManipulation().normalize(X)
+		super(RidgeRigression, self).fit(X, y)
+	
+	def predict(self, X, y):
+		X = DataManipulation().normalize(X)
+		super(RidgeRigression, self).predict(X)
+
+
+class ElasticNet(Regression):
+	""" Elastic Net Regression """
+	def __init__(self, degree=1, reg_factor=0.05, l1_ratio=0.5, n_iterations=100, learning_rate=0.001):
+		self.degree = degree
+		self.regularization = L1L2Regularization(alpha=reg_factor, l1_ratio=l1_ratio)
+		super(ElasticNet, self).__init__(n_iter=n_iter, lr=lr)
+	
+	def fit(self, X, y):
+		X = DataManipulation().polynomial_features(X, degree=self.degree)
+		X = DataManipulation().normalize(X)
+		super(ElasticNet, self).fit(X, y)
+	
+	def predict(self, X):
+		X = DataManipulation().polynomial_features(X, degree=self.degree)
+		X = DataManipulation().normalize(X)
+		super(ElasticNet, self).predict(X)
+

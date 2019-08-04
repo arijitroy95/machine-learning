@@ -1,0 +1,42 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_regression
+from regression import LinearRegression
+from util import DataManipulation
+
+
+def main():
+	X, y = make_regression(n_samples=100, n_features=1, noise=20) 
+	
+	x_train, x_test, y_train, y_test = DataManipulation().train_test_split(X, y, test_size=0.4)
+	n_samples, n_features = X.shape
+	model = LinearRegression()
+	model.fit(x_train, y_train)
+	
+	n = len(model.errors)
+	training = plt.plot(range(n), model.errors, label='Training Errors')
+	plt.title('Error plot')
+	plt.xlabel('Iteration')
+	plt.ylabel('Mean Squared Error')
+	plt.show()
+	
+	y_pred = model.predict(x_test)
+	
+	y_pred_line = model.predict(X)
+
+	# Color map
+	cmap = plt.get_cmap('viridis')
+
+	# Plot the results
+	m1 = plt.scatter(366 * x_train, y_train, color=cmap(0.9), s=10)
+	m2 = plt.scatter(366 * x_test, y_test, color=cmap(0.5), s=10)
+	plt.plot(366 * X, y_pred_line, color='black', linewidth=2, label="Prediction")
+	plt.suptitle("Linear Regression")
+	plt.xlabel('Day')
+	plt.ylabel('Temperature in Celcius')
+	plt.legend((m1, m2), ("Training data", "Test data"), loc='lower right')
+	plt.show()
+	
+if __name__ == "__main__":
+	main()
