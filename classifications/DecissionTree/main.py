@@ -1,0 +1,174 @@
+from collections import defaultdict
+
+def unique_val(rows, col):
+	'''
+		Find the unique values for a column in a dataset
+	'''
+	return set([row[col] for row in rows])
+
+
+dataSet = [['Green', 3, 'Apple'],
+			['Yellow', 3, 'Apple'],
+			['Red', 1, 'Grape'],
+			['Red', 1, 'Grape'],
+			['Yellow', 3, 'Lemon']]
+
+
+header = ['color', 'size', 'label']
+# print(unique_val(dataSet, 0))
+def class_counts(rows):
+	'''
+		counts number of each type of example in a dataset
+	'''
+	counts = defaultdict(int)
+	for row in rows:
+		label = row[-1]
+		counts[label] += 1
+	return counts
+
+# print(class_counts(dataSet))
+def is_numeric(value):
+	'''
+		Test if an attribute is numeric or not.
+	'''
+	return isinstance(value, int) or isinstance(value, float)
+
+# print(is_numeric(''))
+class Question:
+	def __init__(self, column, value):
+		self.column = column
+		self.value = value
+	
+	def match(self, example):
+		'''
+			Compare the feature value if an example to the feature in this question
+		'''
+		val = example[self.column]
+		if is_numeric(val):
+			return val >= self.value
+		else:
+			return val == self.value
+		
+	def __repr__(self):
+		condition = '=='
+		if is_numeric(self.value):
+			condition = '>='
+		ques = "Is %s %s %s?" % (header[self.column], condition, str(self.value))
+		return ques
+	
+# print(Question(1, 3))
+# q = Question(0, 'Green')
+# print(q.match(dataSet[0]))
+
+def partition(rows, question):
+	'''
+		Partition the dataset using qustion
+	'''
+	true_rows, false_rows = [], []
+	for row in rows:
+		if question.match(row):
+			true_rows.append(row)
+		else:
+			false_rows.append(row)
+	return true_rows, false_rows
+
+# tr, fr = partition(dataSet, Question(0, 'Red'))
+# print(tr)
+# print(fr)
+def gini(rows):
+	'''
+		Calculate GINI IMPURITY of list of rows
+	'''
+	counts = class_counts(rows)
+	impurity = 1
+	for label in counts:
+		label_prob = counts[label] / len(rows)
+		impurity -= label_prob ** 2
+	return impurity
+
+def info_gain(left, right, current_uncertainity):
+	p = len(left) / (len(left) + len(right))
+	return current_uncertainity - p * gini(left) - (1 - p) * gini(right)
+
+def find_best_split(rows):
+	best_gain = 0
+	best_question = None
+	current_uncertainity = gini(rows)
+	n_features = len(rows[0]) - 1
+	
+	for col in range(n_features):
+		values = set([row[col] for row in rows])
+		for val in values:
+			question = Question(col, val)
+			true_rows, false_rows = partition(rows, question)
+			if (len(true_rows) == 0) or (len(false_rows) == 0):	
+				continue
+			gain = info_gain(true_rows, false_rows, current_uncertainity)
+			
+			if gain >= best_gain:
+				best_gain, best_question = gain, question
+	return best_gain, best_question
+
+
+class Leaf:
+	def __init__(self, rows):
+		self.prediction = class_counts(rows)
+
+
+class DecissionTree:
+	def __init__(self, question, true_branch, false_branch):
+		self.question = question
+		self.true_branch = true_branch
+		self.false_branch = false_branch
+	
+
+def build_tree(rows):
+	gain, question = find_best_split(rows)
+	if gain == 0:
+		return Leaf(rows)
+	
+	true_rows, false_rows = partition(rows, question)
+	true_branch = build_tree(true_rows)
+	false_branch = build_tree(false_rows)
+	return DecissionTree(question, true_branch, false_branch)
+
+
+def print_tree(node, spacing=''):
+	if isinstance(node, Leaf):
+		print(spacing + 'Predict', node.prediction)
+		return
+	print(spacing + str(node.question))
+	print(spacing + '---> True')
+	print_tree(node.true_branch, spacing + '\t')
+	print(spacing + '---> False')
+	print_tree(node.false_branch, spacing + '\t')
+
+
+def print_leaf(counts):
+	total = sum(counts.values()) * 1.0
+	probs = {}
+	for label in counts.keys():
+		probs[label] = str(int(counts[label] / total * 100)) + '%'
+	return probs
+
+
+def classify(row, node):
+	if isinstance(node, Leaf):
+		return node.prediction
+	if node.question.match(row):
+		return classify(row, node.true_branch)
+	else:
+		return classify(row, node.false_branch)
+
+
+if __name__ == "__main__":
+	my_tree = build_tree(dataSet)
+	print_tree(my_tree)
+	test_data = [['Green', 3, 'Apple'],
+			['Yellow', 4, 'Apple'],
+			['Red', 2, 'Grape'],
+			['Red', 1, 'Grape'],
+			['Yellow', 3, 'Lemon']]
+		
+	for row in test_data:
+		print("Acc: %s\tPred: %s" % (row[-1], print_leaf(classify(row, my_tree))))
